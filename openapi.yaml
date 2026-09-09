@@ -1,0 +1,131 @@
+openapi: 3.1.0
+info:
+  title: Delivery Flow Board API
+  version: 0.1.0
+servers:
+  - url: http://localhost:8000
+security: []
+paths:
+  /api/orders:
+    get:
+      operationId: listOrders
+      summary: List orders
+      responses:
+        '200':
+          description: All orders, or an empty array when no orders exist.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Order'
+        '500':
+          description: Server failure.
+    post:
+      operationId: createOrder
+      summary: Create an order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: The created order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '422':
+          description: Validation failure.
+        '500':
+          description: Server failure.
+  /api/orders/{order_id}/status:
+    patch:
+      operationId: updateOrderStatus
+      summary: Update an order status
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrderStatusRequest'
+      responses:
+        '200':
+          description: The updated order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          description: Order not found.
+        '422':
+          description: Validation failure or unsupported status.
+        '500':
+          description: Server failure.
+components:
+  schemas:
+    OrderStatus:
+      type: string
+      enum:
+        - New
+        - Preparing
+        - Out for delivery
+        - Delivered
+    Order:
+      type: object
+      additionalProperties: false
+      required:
+        - order_id
+        - customer_name
+        - delivery_address
+        - order_summary
+        - status
+      properties:
+        order_id:
+          type: string
+          minLength: 1
+        customer_name:
+          type: string
+          minLength: 1
+        delivery_address:
+          type: string
+          minLength: 1
+        order_summary:
+          type: string
+          minLength: 1
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+    CreateOrderRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - customer_name
+        - delivery_address
+        - order_summary
+      properties:
+        customer_name:
+          type: string
+          minLength: 1
+        delivery_address:
+          type: string
+          minLength: 1
+        order_summary:
+          type: string
+          minLength: 1
+    UpdateOrderStatusRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+      properties:
+        status:
+          $ref: '#/components/schemas/OrderStatus'
