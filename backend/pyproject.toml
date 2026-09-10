@@ -1,10 +1,11 @@
 [project]
 name = "delivery-flow-board-backend"
 version = "0.1.0"
-description = "In-memory FastAPI backend for Delivery Flow Board"
+description = "SQLite-backed FastAPI backend for Delivery Flow Board"
 requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.115,<1.0",
+  "sqlalchemy>=2.0,<3.0",
   "uvicorn[standard]>=0.30,<1.0",
 ]
 

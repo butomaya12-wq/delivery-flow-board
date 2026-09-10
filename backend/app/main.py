@@ -1,13 +1,21 @@
+from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Path, status
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.database import SessionLocal, engine
 from app.models import CreateOrderRequest, Order, UpdateOrderStatusRequest
-from app.store import InMemoryOrderStore
+from app.store import SqlAlchemyOrderStore
 
 
-app = FastAPI(title="Delivery Flow Board API", version="0.1.0")
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    order_store.initialize()
+    yield
+
+
+app = FastAPI(title="Delivery Flow Board API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
@@ -15,7 +23,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH"],
     allow_headers=["Content-Type"],
 )
-order_store = InMemoryOrderStore()
+order_store = SqlAlchemyOrderStore(SessionLocal, engine)
 
 
 @app.get(

@@ -1,37 +1,60 @@
 from uuid import uuid4
 
+from sqlalchemy import select
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, sessionmaker
+
+from app.database import Base
+from app.db_models import OrderRecord
 from app.models import CreateOrderRequest, Order, OrderStatus
 
 
-class InMemoryOrderStore:
-    """Temporary order storage with the same operations a database-backed store will expose."""
+class SqlAlchemyOrderStore:
+    def __init__(self, session_factory: sessionmaker[Session], database_engine: Engine) -> None:
+        self._session_factory = session_factory
+        self._database_engine = database_engine
 
-    def __init__(self) -> None:
-        self._orders: dict[str, Order] = {}
+    def initialize(self) -> None:
+        Base.metadata.create_all(bind=self._database_engine)
 
     def list_orders(self) -> list[Order]:
-        return [order.model_copy(deep=True) for order in self._orders.values()]
+        with self._session_factory() as session:
+            records = session.scalars(select(OrderRecord).order_by(OrderRecord.order_id)).all()
+            return [self._to_api_order(record) for record in records]
 
     def create_order(self, request: CreateOrderRequest) -> Order:
-        order = Order(
+        record = OrderRecord(
             order_id=f"ORD-{uuid4()}",
             customer_name=request.customer_name,
             delivery_address=request.delivery_address,
             order_summary=request.order_summary,
-            status=OrderStatus.NEW,
+            status=OrderStatus.NEW.value,
         )
-        self._orders[order.order_id] = order
-        return order.model_copy(deep=True)
+
+        with self._session_factory() as session:
+            session.add(record)
+            session.commit()
+            session.refresh(record)
+            return self._to_api_order(record)
 
     def update_order_status(self, order_id: str, status: OrderStatus) -> Order | None:
-        order = self._orders.get(order_id)
+        with self._session_factory() as session:
+            record = session.scalar(select(OrderRecord).where(OrderRecord.order_id == order_id))
 
-        if order is None:
-            return None
+            if record is None:
+                return None
 
-        updated_order = order.model_copy(update={"status": status})
-        self._orders[order_id] = updated_order
-        return updated_order.model_copy(deep=True)
+            record.status = status.value
+            session.commit()
+            session.refresh(record)
+            return self._to_api_order(record)
 
-    def clear(self) -> None:
-        self._orders.clear()
+    @staticmethod
+    def _to_api_order(record: OrderRecord) -> Order:
+        return Order(
+            order_id=record.order_id,
+            customer_name=record.customer_name,
+            delivery_address=record.delivery_address,
+            order_summary=record.order_summary,
+            status=record.status,
+        )
