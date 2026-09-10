@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 import { createOrder, listOrders, ORDER_STATUSES, updateOrderStatus } from './api.js'
 
@@ -15,9 +15,23 @@ const FIELD_LABELS = {
 }
 
 function App() {
-  const [orders, setOrders] = useState(() => listOrders())
+  const [orders, setOrders] = useState([])
   const [formData, setFormData] = useState(EMPTY_FORM)
   const [errors, setErrors] = useState({})
+  const [requestError, setRequestError] = useState('')
+
+  useEffect(() => {
+    async function loadOrders() {
+      try {
+        const loadedOrders = await listOrders()
+        setOrders(loadedOrders)
+      } catch (error) {
+        setRequestError(error.message)
+      }
+    }
+
+    loadOrders()
+  }, [])
 
   function handleInputChange(event) {
     const { name, value } = event.target
@@ -26,7 +40,7 @@ function App() {
     setErrors((currentErrors) => ({ ...currentErrors, [name]: '' }))
   }
 
-  function handleCreateOrder(event) {
+  async function handleCreateOrder(event) {
     event.preventDefault()
 
     const nextErrors = Object.fromEntries(
@@ -40,15 +54,27 @@ function App() {
       return
     }
 
-    createOrder(formData)
-    setOrders(listOrders())
-    setFormData(EMPTY_FORM)
-    setErrors({})
+    try {
+      const createdOrder = await createOrder(formData)
+      setOrders((currentOrders) => [...currentOrders, createdOrder])
+      setFormData(EMPTY_FORM)
+      setErrors({})
+      setRequestError('')
+    } catch (error) {
+      setRequestError(error.message)
+    }
   }
 
-  function handleStatusChange(orderId, status) {
-    updateOrderStatus(orderId, status)
-    setOrders(listOrders())
+  async function handleStatusChange(orderId, status) {
+    try {
+      const updatedOrder = await updateOrderStatus(orderId, status)
+      setOrders((currentOrders) =>
+        currentOrders.map((order) => (order.order_id === orderId ? updatedOrder : order)),
+      )
+      setRequestError('')
+    } catch (error) {
+      setRequestError(error.message)
+    }
   }
 
   return (
@@ -104,7 +130,11 @@ function App() {
             <p className="section-label">Kanban board</p>
             <h2 id="board-title">Orders by status</h2>
           </div>
-          <p className="mock-notice">Data is stored locally in mock mode.</p>
+          {requestError && (
+            <p className="request-error" role="alert">
+              {requestError}
+            </p>
+          )}
         </div>
 
         <div className="board">

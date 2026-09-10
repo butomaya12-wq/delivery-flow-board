@@ -1,12 +1,20 @@
 from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Path, status
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.models import CreateOrderRequest, Order, UpdateOrderStatusRequest
 from app.store import InMemoryOrderStore
 
 
 app = FastAPI(title="Delivery Flow Board API", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PATCH"],
+    allow_headers=["Content-Type"],
+)
 order_store = InMemoryOrderStore()
 
 

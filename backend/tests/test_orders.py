@@ -33,6 +33,19 @@ def test_list_orders_returns_empty_list_initially(client: TestClient) -> None:
     assert response.json() == []
 
 
+def test_cors_allows_the_local_vite_origin(client: TestClient) -> None:
+    response = client.options(
+        "/api/orders",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+
+
 def test_create_order_returns_created_order(client: TestClient) -> None:
     response = client.post("/api/orders", json=create_order_payload())
 
